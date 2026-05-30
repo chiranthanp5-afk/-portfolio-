@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>World Map Tour Planner</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Source+Sans+Pro:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #0D1B2A;
+            --secondary: #1B263B;
+            --accent: #E07A5F;
+            --accent-secondary: #81B29A;
+            --text-primary: #F4F3EE;
+            --text-secondary: #9BA8AB;
+            --success: #81B29A;
+            --warning: #F2CC8F;
+        }
+
+        body {
+            font-family: 'Source Sans Pro', sans-serif;
+            background-color: var(--primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--secondary) 0%, #243447 100%);
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .logo-section {
+            font-size: 32px;
+            display: inline-block;
+            margin-right: 12px;
+        }
+
+        .header h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: 0.5px;
+            text-shadow: 0 2px 10px rgba(224,122,95,0.3);
+        }
+
+        /* Controls Bar */
+        .controls-bar {
+            background: var(--secondary);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            min-height: 60px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+        }
+
+        /* Search */
+        .search-container {
+            position: relative;
+            width: 280px;
+            max-width: 300px;
+            margin-right: auto;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: 8px;
+            background: var(--primary);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: var(--text-primary);
+            font-size: 14px;
+            outline: none;
+            transition: all 0.25s ease;
+            font-family: inherit;
+        }
+
+        .search-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(224,122,95,0.2);
+        }
+
+        .search-input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--secondary);
+            border-radius: 8px;
+            margin-top: 4px;
+            max-height: 250px;
+            overflow-y: auto;
+            list-style: none;
+            z-index: 9999;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+            display: none;
+        }
+
+        .search-results:not(.hidden) {
+            display: block;
+        }
+
+        .search-results .list-item {
+            padding: 10px 14px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            border-bottom: 0.5px solid rgba(255,255,255,0.03);
+        }
+
+        .search-results .list-item:hover {
+            background: var(--primary);
+            color: var(--accent);
+        }
+
+        .search-results .result-name {
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .search-results .result-detail {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        /* Mode Toggle */
+        .mode-toggle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-right: 16px;
+        }
+
+        .mode-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-right: 6px;
+            white-space: nowrap;
+        }
+
+        .btn-mode {
+            padding: 7px 12px;
+            background: transparent;
+            border: 1px solid var(--accent);
+            border-radius: 6px;
+            color: var(--accent);
+            opacity: 0.6;
+            transition: all 0.25s ease;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 13px;
+        }
+
+        .btn-mode.active {
+            background: var(--accent);
+            color: var(--text-primary);
+            opacity: 1;
+        }
+
+        .btn-mode:hover {
+            opacity: 1;
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-buttons button {
+            padding: 9px 14px;
+            background: transparent;
+            border: 1px solid var(--accent);
+            border-radius: 7px;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.25s ease;
+            font-size: 13px;
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .action-buttons button:hover {
+            background: var(--accent);
+            transform: translateY(-1px);
+        }
+
+        /* Main Content */
+        .main-content {
+            display: flex;
+            height: calc(100vh - 120px);
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar-panel {
+            width: 340px;
+            min-width: 300px;
+            background: var(--secondary);
+            overflow-y: auto;
+            padding: 20px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--secondary) var(--primary);
+        }
+
+        .sidebar-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar-panel::-webkit-scrollbar-track {
+            background: var(--primary);
+        }
+
+        .sidebar-panel::-webkit-scrollbar-thumb {
+            background: var(--accent);
+            border-radius: 3px;
+        }
+
+        /* Cards */
+        .route-info-card, .stops-card, .directions-card, .saved-tours-section {
+            background: linear-gradient(145deg, var(--secondary) 0%, #253040 100%);
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            padding: 18px;
+            margin-bottom: 18px;
+        }
+
+        .route-info-card b, .stops-card h3, .directions-card h3, .saved-tours-section h2 {
+            color: var(--text-secondary);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .stops-card h3, .directions-card h3, .saved-tours-section h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--text-primary);
+            text-transform: none;
+            letter-spacing: 0;
+            margin-bottom: 12px;
+        }
+
+        .distance-display, .time-display {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 8px;
+        }
+
+        .distance-display span, .time-display span {
+            color: var(--accent-secondary);
+            font-size: 22px;
+            font-family: 'Playfair Display', serif;
+            font-weight: 700;
+        }
+
+        /* Stops List */
+        .stops-list {
+            list-style: none;
+            counter-reset: stop-counter;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .stop-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            position: relative;
+            counter-increment: stop-counter;
+        }
+
+        .stop-number {
+            width: 24px;
+            height: 24px;
+            background: var(--accent);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .stop-name {
+            flex: 1;
+            font-size: 13px;
+        }
+
+        .delete-stop {
+            background: transparent;
+            border: none;
+            color: var(--accent);
+            cursor: pointer;
+            font-size: 18px;
+            opacity: 0.5;
+            transition: opacity 0.2s;
+            padding: 4px 8px;
+        }
+
+        .delete-stop:hover {
+            opacity: 1;
+        }
+
+        .empty-state {
+            color: var(--text-secondary);
+            text-align: center;
+            padding: 20px;
+            font-size: 13px;
+        }
+
+        /* Directions */
+        .directions-panel {
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .direction-step {
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 6px;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .step-number {
+            color: var(--accent);
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        .step-instruction {
+            color: var(--text-primary);
+        }
+
+        .step-distance {
+            color: var(--text-secondary);
+            font-size: 11px;
+            margin-top: 4px;
+            display: block;
+        }
+
+        /* Saved Tours */
+        .saved-tours-list {
+            list-style: none;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .tour-item {
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+
+        .tour-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .tour-item-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .tour-item-meta {
+            font-size: 11px;
+            color: var(--text-secondary);
+            display: block;
+            margin-top: 2px;
+        }
+
+        .tour-item-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .load-btn, .delete-btn {
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+
+        .load-btn {
+            background: var(--accent);
+            color: white;
+        }
+
+        .delete-btn {
+            background: transparent;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+        }
+
+        .delete-btn:hover {
+            background: var(--accent);
+            color: white;
+        }
+
+        /* Map Container */
+        .map-container {
+            flex: 1;
+            height: 100%;
+            min-width: 0;
+            position: relative;
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+
+        /* Leaflet Customizations */
+        .leaflet-control-attribution {
+            background: rgba(13,27,42,0.85) !important;
+            color: var(--text-secondary) !important;
+        }
+
+        .leaflet-control-attribution a {
+            color: var(--accent-secondary) !important;
+        }
+
+        .leaflet-zoom-in, .leaflet-zoom-out {
+            background-color: var(--secondary) !important;
+            border-radius: 4px !important;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3) !important;
+        }
+
+        .leaflet-zoom-in:hover, .leaflet-zoom-out:hover {
+            background: var(--primary) !important;
+        }
+
+        /* Custom Markers */
+        .custom-marker {
+            background: var(--accent);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+            border: 2px solid white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        /* Map Theme */
+        .leaflet-tile-pane {
+            filter: saturate(0.8) contrast(1.1);
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal-overlay:not(.hidden) {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: var(--secondary);
+            border-radius: 12px;
+            padding: 24px;
+            min-width: 320px;
+            max-width: 400px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+
+        .modal-content h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 20px;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+
+        .modal-content input {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 8px;
+            background: var(--primary);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: var(--text-primary);
+            font-size: 14px;
+            margin-bottom: 16px;
+            font-family: inherit;
+        }
+
+        .modal-content input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .modal-buttons button {
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        .btn-confirm {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-cancel {
+            background: transparent;
+            border: 1px solid var(--text-secondary) !important;
+            color: var(--text-secondary);
+        }
+
+        .btn-confirm:hover {
+            background: #c96a52;
+        }
+
+        .btn-cancel:hover {
+            border-color: var(--text-primary) !important;
+            color: var(--text-primary);
+        }
+
+        /* Toast Notification */
+        .toast-notification {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--accent-secondary);
+            color: var(--primary);
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            z-index: 10001;
+            transition: transform 0.3s ease;
+        }
+
+        .toast-notification:not(.hidden) {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* Hidden utility */
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo-section">🌍</div>
+            <h1>World Map Tour Planner</h1>
+        </header>
+
+        <!-- Controls Bar -->
+        <div class="controls-bar">
+            <!-- Search Section -->
+            <div class="search-container">
+                <input type="text" id="search-input" class="search-input" placeholder="Search for a city or location..." autocomplete="off">
+                <ul id="search-results" class="search-results hidden"></ul>
+            </div>
+
+            <!-- Route Mode Toggle -->
+            <div class="mode-toggle">
+                <span class="mode-label">Mode:</span>
+                <button id="btn-add-stops" class="btn-mode active">📍 Add Stops</button>
+                <button id="btn-view-route" class="btn-mode">🛣️ View Route</button>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <button id="btn-save-tour">💾 Save Tour</button>
+                <button id="btn-load-tour">📂 Load Tour</button>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Sidebar -->
+            <div class="sidebar-panel">
+                <!-- Route Info -->
+                <div class="route-info-card">
+                    <b>Your Trip</b>
+                    <div class="distance-display">
+                        <span>Distance:</span>
+                        <span id="total-distance">0 km</span>
+                    </div>
+                    <div class="time-display">
+                        <span>Time:</span>
+                        <span id="total-time">0 min</span>
+                    </div>
+                </div>
+
+                <!-- Stops List -->
+                <div class="stops-card">
+                    <h3>Stops</h3>
+                    <ul id="stops-list" class="stops-list">
+                        <li class="empty-state">Click on the map to add stops</li>
+                    </ul>
+                </div>
+
+                <!-- Directions -->
+                <div class="directions-card">
+                    <h3>Directions</h3>
+                    <div id="directions-panel" class="directions-panel">
+                        <div class="empty-state">Add at least 2 stops to see directions</div>
+                    </div>
+                </div>
+
+                <!-- Saved Tours -->
+                <div class="saved-tours-section">
+                    <h2>Saved Tours</h2>
+                    <ul id="saved-tours-list" class="saved-tours-list">
+                        <li class="empty-state">No saved tours yet</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Map Container -->
+            <div class="map-container">
+                <div id="map"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Overlay -->
+    <div id="modal-overlay" class="modal-overlay hidden">
+        <!-- Save Modal -->
+        <div id="modal-save" class="modal-content hidden">
+            <h2>Save Your Tour</h2>
+            <input type="text" id="tour-name" placeholder="Enter tour name...">
+            <div class="modal-buttons">
+                <button id="btn-cancel-save" class="btn-cancel">Cancel</button>
+                <button id="btn-confirm-save" class="btn-confirm">Save</button>
+            </div>
+        </div>
+
+        <!-- Load Modal -->
+        <div id="modal-load" class="modal-content hidden">
+            <h2>Load a Tour</h2>
+            <div id="load-modal-list">
+                <div class="empty-state">No saved tours to load</div>
+            </div>
+            <div class="modal-buttons">
+                <button id="btn-close-load" class="btn-cancel">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast-notification hidden">Tour saved successfully!</div>
+
+    <script>
+        // Initialize map centered on world view
+        const map = L.map('map').setView([20, 0], 2);
+
+        // Add OpenStreetMap tiles with a darker theme
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
+
+        // App state
+        let stops = [];
+        let markers = [];
+        let routeLine = null;
+        let currentMode = 'add'; // 'add' or 'view'
+        let savedTours = JSON.parse(localStorage.getItem('savedTours')) || [];
+
+        // DOM Elements
+        const searchInput = document.getElementById('search-input');
+        const searchResults = document.getElementById('search-results');
+        const stopsList = document.getElementById('stops-list');
+        const directionsPanel = document.getElementById('directions-panel');
+        const totalDistance = document.getElementById('total-distance');
+        const totalTime = document.getElementById('total-time');
+        const savedToursList = document.getElementById('saved-tours-list');
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalSave = document.getElementById('modal-save');
+        const modalLoad = document.getElementById('modal-load');
+        const tourNameInput = document.getElementById('tour-name');
+        const toast = document.getElementById('toast');
+        const loadModalList = document.getElementById('load-modal-list');
+
+        // Custom marker icon
+        function createMarkerIcon(number) {
+            return L.divIcon({
+                className: 'custom-marker-wrapper',
+                html: `<div class="custom-marker" style="width:28px;height:28px;">${number}</div>`,
+                iconSize: [28, 28],
+                iconAnchor: [14, 14]
+            });
+        }
+
+        // Search functionality with debounce
+        let searchTimeout;
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            const query = e.target.value.trim();
+            
+            if (query.length < 2) {
+                searchResults.classList.add('hidden');
+                return;
+            }
+
+            searchTimeout = setTimeout(() => {
+                searchLocations(query);
+            }, 300);
+        });
+
+        async function searchLocations(query) {
+            try {
+                const response = await fetch(
+                    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`
+                );
+                const data = await response.json();
+                
+                searchResults.innerHTML = '';
+                
+                if (data.length === 0) {
+                    searchResults.innerHTML = '<li class="list-item"><span class="result-name">No results found</span></li>';
+                } else {
+                    data.forEach(location => {
+                        const li = document.createElement('li');
+                        li.className = 'list-item';
+                        li.innerHTML = `
+                            <span class="result-name">${location.display_name.split(',').slice(0, 2).join(',')}</span>
+                            <span class="result-detail">${location.display_name.split(',').slice(2, 4).join(',')}</span>
+                        `;
+                        li.addEventListener('click', () => {
+                            selectLocation(parseFloat(location.lat), parseFloat(location.lon), location.display_name);
+                        });
+                        searchResults.appendChild(li);
+                    });
+                }
+                
+                searchResults.classList.remove('hidden');
+            } catch (error) {
+                console.error('Search error:', error);
+            }
+        }
+
+        function selectLocation(lat, lng, name) {
+            addStop(lat, lng, name);
+            searchInput.value = '';
+            searchResults.classList.add('hidden');
+        }
+
+        // Close search results when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.search-container')) {
+                searchResults.classList.add('hidden');
+            }
+        });
+
+        // Mode toggle
+        document.getElementById('btn-add-stops').addEventListener('click', () => setMode('add'));
+        document.getElementById('btn-view-route').addEventListener('click', () => setMode('view'));
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.getElementById('btn-add-stops').classList.toggle('active', mode === 'add');
+            document.getElementById('btn-view-route').classList.toggle('active', mode === 'view');
+        }
+
+        // Map click handler
+        map.on('click', (e) => {
+            if (currentMode === 'add') {
+                reverseGeocode(e.latlng.lat, e.latlng.lng);
+            }
+        });
+
+        async function reverseGeocode(lat, lng) {
+            try {
+                const response = await fetch(
+                    `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
+                );
+                const data = await response.json();
+                const name = data.display_name ? data.display_name.split(',').slice(0, 2).join(',') : `Stop ${stops.length + 1}`;
+                addStop(lat, lng, name);
+            } catch (error) {
+                addStop(lat, lng, `Stop ${stops.length + 1}`);
+            }
+        }
+
+        function addStop(lat, lng, name) {
+            if (stops.length >= 10) {
+                showToast('Maximum 10 stops allowed');
+                return;
+            }
+
+            stops.push({ lat, lng, name });
+            
+            const marker = L.marker([lat, lng], { icon: createMarkerIcon(stops.length) }).addTo(map);
+            marker.bindPopup(`<b>${name}</b>`);
+            markers.push(marker);
+
+            updateStopsList();
+            
+            if (stops.length >= 2) {
+                calculateRoute();
+            }
+            
+            map.setView([lat, lng], 10);
+        }
+
+        function updateStopsList() {
+            if (stops.length === 0) {
+                stopsList.innerHTML = '<li class="empty-state">Click on the map to add stops</li>';
+                return;
+            }
+
+            stopsList.innerHTML = stops.map((stop, index) => `
+                <li class="stop-item">
+                    <span class="stop-number">${index + 1}</span>
+                    <span class="stop-name">${stop.name}</span>
+                    <button class="delete-stop" onclick="removeStop(${index})">×</button>
+                </li>
+            `).join('');
+        }
+
+        function removeStop(index) {
+            stops.splice(index, 1);
+            
+            // Remove marker
+            if (markers[index]) {
+                map.removeLayer(markers[index]);
+                markers.splice(index, 1);
+            }
+
+            // Update marker numbers
+            markers.forEach((marker, i) => {
+                marker.setIcon(createMarkerIcon(i + 1));
+            });
+
+            updateStopsList();
+            
+            if (stops.length >= 2) {
+                calculateRoute();
+            } else {
+                clearRoute();
+            }
+        }
+
+        async function calculateRoute() {
+            if (stops.length < 2) return;
+            
+            directionsPanel.innerHTML = '<div class="empty-state">Calculating route...</div>';
+
+            try {
+                const coordinates = stops.map(s => `${s.lng},${s.lat}`).join(';');
+                const response = await fetch(
+                    `https://router.project-osrm.org/route/v1/driving/${coordinates}?overview=full&steps=true`
+                );
+                const data = await response.json();
+
+                if (data.code !== 'Ok' || !data.routes || !data.routes[0]) {
+                    calculateStraightLineDistance();
+                    return;
+                }
+
+                const route = data.routes[0];
+                
+                if (routeLine) map.removeLayer(routeLine);
+                const routeCoords = route.geometry.coordinates.map(c => [c[1], c[0]]);
+                routeLine = L.polyline(routeCoords, {
+                    color: '#81B29A',
+                    weight: 4,
+                    opacity: 0.8
+                }).addTo(map);
+
+                map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
+
+                const distanceKm = (route.distance / 1000).toFixed(1);
+                const timeMinutes = Math.round(route.duration / 60);
+                const hours = Math.floor(timeMinutes / 60);
+                const mins = timeMinutes % 60;
+                
+                totalDistance.textContent = `${distanceKm} km`;
+                totalTime.textContent = hours > 0 ? `${hours}h ${mins}m` : `${mins} min`;
+
+                let directionsHTML = '';
+                let stepNum = 1;
+                
+                route.legs.forEach((leg) => {
+                    leg.steps.forEach((step) => {
+                        const instruction = getDirectionText(step.maneuver?.type, step.maneuver?.modifier);
+                        const distance = step.distance;
+                        const distanceText = distance < 1000 ? `${Math.round(distance)} m` : `${(distance / 1000).toFixed(1)} km`;
+                        
+                        directionsHTML += `<div class="direction-step"><span class="step-number">${stepNum}.</span><span class="step-instruction">${instruction}</span><span class="step-distance">${distanceText}</span></div>`;
+                        stepNum++;
+                    });
+                });
+
+                directionsPanel.innerHTML = directionsHTML;
+
+            } catch (error) {
+                console.error('Route error:', error);
+                calculateStraightLineDistance();
+            }
+        }
+
+        function calculateStraightLineDistance() {
+            let totalDist = 0;
+            let directionsHTML = '';
+            
+            for (let i = 0; i < stops.length; i++) {
+                if (i > 0) {
+                    const dist = getDistanceFromLatLonInKm(stops[i-1].lat, stops[i-1].lng, stops[i].lat, stops[i].lng);
+                    totalDist += dist;
+                    directionsHTML += `<div class="direction-step"><span class="step-number">${i}.</span><span class="step-instruction">Drive from ${stops[i-1].name} to ${stops[i].name}</span><span class="step-distance">${dist.toFixed(1)} km</span></div>`;
+                }
+            }
+            
+            if (routeLine) map.removeLayer(routeLine);
+            const lineCoords = stops.map(s => [s.lat, s.lng]);
+            routeLine = L.polyline(lineCoords, { color: '#81B29A', weight: 4, opacity: 0.8, dashArray: '10, 10' }).addTo(map);
+            map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
+
+            const timeHours = totalDist / 60;
+            const hours = Math.floor(timeHours);
+            const mins = Math.round((timeHours - hours) * 60);
+            
+            totalDistance.textContent = `${totalDist.toFixed(1)} km`;
+            totalTime.textContent = hours > 0 ? `${hours}h ${mins}m` : `${mins} min`;
+            directionsPanel.innerHTML = directionsHTML || '<div class="empty-state">Add at least 2 stops</div>';
+        }
+
+        function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = deg2rad(lat2 - lat1);
+            const dLon = deg2rad(lon2 - lon1);
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        function deg2rad(deg) {
+            return deg * (Math.PI/180);
+        }
+
+        function getDirectionText(type, modifier) {
+            const directions = {
+                'depart': 'Start your journey',
+                'arrive': 'You have arrived',
+                'turn': `Turn ${modifier || 'right'}`,
+                'merge': `Merge onto ${modifier || 'road'}`,
+                'fork': `Keep ${modifier || 'left'} at fork`,
+                'end of road': `Turn ${modifier || 'right'}`,
+                'new name': 'Continue',
+                'notification': 'Continue straight',
+                'rotary': 'Enter roundabout'
+            };
+            return directions[type] || 'Continue';
+        }
+
+        function clearRoute() {
+            if (routeLine) {
+                map.removeLayer(routeLine);
+                routeLine = null;
+            }
+            totalDistance.textContent = '0 km';
+            totalTime.textContent = '0 min';
+            directionsPanel.innerHTML = '<div class="empty-state">Add at least 2 stops to see directions</div>';
+        }
+
+        // Save Tour Modal
+        document.getElementById('btn-save-tour').addEventListener('click', () => {
+            if (stops.length < 2) {
+                showToast('Add at least 2 stops to save a tour');
+                return;
+            }
+            modalSave.classList.remove('hidden');
+            modalOverlay.classList.remove('hidden');
+            tourNameInput.value = '';
+            tourNameInput.focus();
+        });
+
+        document.getElementById('btn-cancel-save').addEventListener('click', closeModal);
+
+        document.getElementById('btn-confirm-save').addEventListener('click', () => {
+            const name = tourNameInput.value.trim();
+            if (!name) {
+                showToast('Please enter a tour name');
+                return;
+            }
+
+            const tour = {
+                id: Date.now(),
+                name: name,
+                createdAt: new Date().toISOString(),
+                stops: [...stops],
+                distance: totalDistance.textContent,
+                time: totalTime.textContent
+            };
+
+            savedTours.push(tour);
+            localStorage.setItem('savedTours', JSON.stringify(savedTours));
+            
+            closeModal();
+            showToast('Tour saved successfully!');
+            renderSavedTours();
+        });
+
+        // Load Tour Modal
+        document.getElementById('btn-load-tour').addEventListener('click', () => {
+            modalLoad.classList.remove('hidden');
+            modalOverlay.classList.remove('hidden');
+            renderLoadList();
+        });
+
+        document.getElementById('btn-close-load').addEventListener('click', closeModal);
+
+        function renderLoadList() {
+            if (savedTours.length === 0) {
+                loadModalList.innerHTML = '<div class="empty-state">No saved tours to load</div>';
+                return;
+            }
+
+            loadModalList.innerHTML = savedTours.map(tour => `
+                <div class="tour-item">
+                    <div class="tour-item-header">
+                        <span class="tour-item-title">${tour.name}</span>
+                    </div>
+                    <span class="tour-item-meta">${tour.stops.length} stops • ${tour.distance}</span>
+                    <div class="tour-item-actions">
+                        <button class="load-btn" onclick="loadTour(${tour.id})">Load</button>
+                        <button class="delete-btn" onclick="deleteTour(${tour.id})">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.loadTour = function(id) {
+            const tour = savedTours.find(t => t.id === id);
+            if (!tour) return;
+
+            // Clear current stops
+            stops.forEach((_, i) => {
+                if (markers[i]) map.removeLayer(markers[i]);
+            });
+            markers = [];
+            clearRoute();
+
+            // Load tour stops
+            tour.stops.forEach(stop => {
+                stops.push(stop);
+                const marker = L.marker([stop.lat, stop.lng], { icon: createMarkerIcon(stops.length) }).addTo(map);
+                marker.bindPopup(`<b>${stop.name}</b>`);
+                markers.push(marker);
+            });
+
+            updateStopsList();
+            
+            if (stops.length >= 2) {
+                calculateRoute();
+            }
+
+            closeModal();
+            showToast('Tour loaded!');
+        };
+
+        window.deleteTour = function(id) {
+            savedTours = savedTours.filter(t => t.id !== id);
+            localStorage.setItem('savedTours', JSON.stringify(savedTours));
+            renderLoadList();
+            renderSavedTours();
+            showToast('Tour deleted');
+        };
+
+        // Render saved tours in sidebar
+        function renderSavedTours() {
+            if (savedTours.length === 0) {
+                savedToursList.innerHTML = '<li class="empty-state">No saved tours yet</li>';
+                return;
+            }
+
+            savedToursList.innerHTML = savedTours.map(tour => `
+                <li class="tour-item">
+                    <div class="tour-item-header">
+                        <span class="tour-item-title">${tour.name}</span>
+                    </div>
+                    <span class="tour-item-meta">${tour.stops.length} stops • ${tour.distance}</span>
+                </li>
+            `).join('');
+        }
+
+        function closeModal() {
+            modalOverlay.classList.add('hidden');
+            modalSave.classList.add('hidden');
+            modalLoad.classList.add('hidden');
+        }
+
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) closeModal();
+        });
+
+        function showToast(message) {
+            toast.textContent = message;
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+
+        // Initialize saved tours display
+        renderSavedTours();
+    </script>
+</body>
+</html>
+
